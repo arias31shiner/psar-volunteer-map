@@ -252,8 +252,8 @@ const BUILT_IN_VOLUNTEERS = [
 const map = L.map('map', {
   zoomControl: false,
   minZoom: 1,                                  // raised dynamically below so the world always fills the frame
-  worldCopyJump: false,
-  maxBounds: [[-60, -180], [85, 180]],         // the inhabited world — no panning off into empty ocean
+  worldCopyJump: true,
+  maxBounds: [[-60, -330], [85, 330]],         // latitude fenced; longitude free so it wraps like a globe
   maxBoundsViscosity: 1.0
 });
 L.control.zoom({ position:'bottomright' }).addTo(map);
@@ -275,11 +275,11 @@ window.addEventListener('resize', clampWorldZoom);
 //   3. The built-in vector world map above (renders even with no tile service at all,
 //      e.g. in restricted preview environments or during a provider outage)
 const carto = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', {
-  subdomains:'abcd', maxZoom:20, noWrap:true,
+  subdomains:'abcd', maxZoom:20,
   attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
 });
 const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom:19, noWrap:true,
+  maxZoom:19,
   attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 });
 
@@ -317,7 +317,7 @@ function buildLabels(){
                         oy: 0, name, marker: mkLabel(name, lat, lng, tier) });
   });
   STATE_LABELS.forEach(([name, lat, lng]) => {
-    labelMarkers.push({ rank: -1, minZ: 5, fs: 9, oy: 0, name,
+    labelMarkers.push({ rank: -1, minZ: 4, fs: 9, oy: 0, name,
                         marker: mkLabel(name, lat, lng, 'lab-st') });
   });
   cityLabelData.forEach(([name, lat, lng]) => {
@@ -587,7 +587,7 @@ function focusCity(info, label, country){
 }
 
 /* ══════════ 6 · WORLDWIDE VIEW + RESET BUTTON ════════════════ */
-function worldView(){ if (bounds) map.fitBounds(bounds, { padding: [48, 48] }); }
+function worldView(){ map.setView([28, -40], map.getMinZoom()); }   // whole world, Atlantic-centered, US left of center
 
 const ResetControl = L.Control.extend({
   options: { position: window.matchMedia('(max-width: 560px)').matches ? 'bottomleft' : 'topright' },
