@@ -123,7 +123,7 @@
   @media (max-width:560px){
     .site-card{left:12px;right:12px;top:12px;max-width:none;padding:12px 14px 12px 12px}
     .title{font-size:18px}
-    .reset-wrap{margin:12px 12px 0 0}
+    .reset-wrap{margin:0 0 12px 12px}
     .map-shell{height:min(66vh,520px);min-height:380px}
     .page{padding:8px}
   }
@@ -249,25 +249,44 @@ const BUILT_IN_VOLUNTEERS = [
 ];
 
 /* ══════════ 3 · MAP SETUP ════════════════════════════════════ */
-const map = L.map('map', { zoomControl:false, minZoom:1, worldCopyJump:true });
+const map = L.map('map', {
+  zoomControl: false,
+  minZoom: 1,                                  // raised dynamically below so the world always fills the frame
+  worldCopyJump: false,
+  maxBounds: [[-60, -180], [85, 180]],         // the inhabited world — no panning off into empty ocean
+  maxBoundsViscosity: 1.0
+});
 L.control.zoom({ position:'bottomright' }).addTo(map);
 
+// Never allow zooming out past "the world fills the frame" — no voids, no duplicate earths.
+// Recomputed on resize so phones and widescreens each get the right floor.
+function clampWorldZoom(){
+  const fit = map.getBoundsZoom([[-60, -180], [85, 180]], true);
+  map.setMinZoom(fit);
+  if (map.getZoom() !== undefined && map.getZoom() < fit) map.setZoom(fit);
+}
+clampWorldZoom();
+window.addEventListener('resize', clampWorldZoom);
+
 // Basemap strategy — three tiers of resilience:
-//   1. CARTO Voyager street tiles (primary — free, warm cream land tones that match the PSAR site)
+//   1. CARTO Voyager tiles, label-free variant (free, warm cream land tones matching the PSAR site).
+//      Place names come from this file's own English label engine on every tier below.
 //   2. Standard OpenStreetMap tiles (automatic fallback if CARTO is unreachable)
 //   3. The built-in vector world map above (renders even with no tile service at all,
 //      e.g. in restricted preview environments or during a provider outage)
-const carto = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-  subdomains:'abcd', maxZoom:20,
+const carto = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', {
+  subdomains:'abcd', maxZoom:20, noWrap:true,
   attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
 });
 const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom:19,
+  maxZoom:19, noWrap:true,
   attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 });
 
 map.createPane('basemapPane');                      // sits beneath tiles and markers
 map.getPane('basemapPane').style.zIndex = 150;
+map.createPane('labelPane');                        // English labels above tiles, below markers
+map.getPane('labelPane').style.zIndex = 350;
 const vectorWorld = L.layerGroup([
   L.geoJSON(WORLD_LAND,  { pane:'basemapPane', interactive:false,
     style:{ fillColor:'#F0EDDF', fillOpacity:1, color:'#ADB79B', weight:.7 } }),
@@ -284,7 +303,7 @@ let cityLabelData = [];      // filled once volunteer data renders
 
 function mkLabel(name, lat, lng, cls){
   return L.marker([lat, lng], {
-    pane: 'basemapPane', interactive: false, keyboard: false,
+    pane: 'labelPane', interactive: false, keyboard: false,
     icon: L.divIcon({ className: 'label-wrap', iconSize: [0, 0],
       html: '<span class="country-label ' + cls + '">' + name + '</span>' })
   });
@@ -310,11 +329,12 @@ function buildLabels(){
 function refreshLabels(){
   if (labelMarkers) labelMarkers.forEach(l => { if (map.hasLayer(l.marker)) map.removeLayer(l.marker); });
   labelMarkers = null;
-  if (usingVector){ buildLabels(); updateLabels(); }
+  buildLabels();
+  updateLabels();
 }
 
 function updateLabels(){
-  if (!usingVector || !labelMarkers) return;
+  if (!labelMarkers) return;
   const z = map.getZoom();
   const maxCountry = z <= 2 ? 40 : z === 3 ? 75 : z === 4 ? 120 : COUNTRY_LABELS.length;
   const hit = (b, arr) => arr.some(o => b.x1 < o.x2 && b.x2 > o.x1 && b.y1 < o.y2 && b.y2 > o.y1);
@@ -344,9 +364,6 @@ function engageVector(){
   usingVector = true;
   [carto, osm].forEach(l => { if (map.hasLayer(l)) map.removeLayer(l); });
   vectorWorld.addTo(map);
-  if (!labelMarkers) buildLabels();
-  updateLabels();
-  map.on('zoomend', updateLabels);
   map.attributionControl.addAttribution('Built-in basemap &middot; Natural Earth');
 }
 carto.on('tileload', () => anyTileLoaded = true);
@@ -355,6 +372,11 @@ carto.on('tileerror', () => { if (++cartoErrors === 3 && !anyTileLoaded) { map.r
 osm.on('tileerror',  () => { if (++osmErrors  === 3 && !anyTileLoaded) engageVector(); });
 carto.addTo(map);
 setTimeout(() => { if (!anyTileLoaded) engageVector(); }, 3000);
+
+// English place labels — this file's own label engine, active over every basemap tier
+buildLabels();
+updateLabels();
+map.on('zoomend', updateLabels);
 
 /* ══════════ 4 · GOOGLE SHEET LOADING ═════════════════════════
    Fetches the published CSV, understands the column headers in
@@ -568,7 +590,7 @@ function focusCity(info, label, country){
 function worldView(){ if (bounds) map.fitBounds(bounds, { padding: [48, 48] }); }
 
 const ResetControl = L.Control.extend({
-  options: { position: 'topright' },
+  options: { position: window.matchMedia('(max-width: 560px)').matches ? 'bottomleft' : 'topright' },
   onAdd(){
     const wrap = L.DomUtil.create('div', 'reset-wrap');
     const btn = L.DomUtil.create('button', 'reset-btn', wrap);
