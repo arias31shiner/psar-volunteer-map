@@ -604,7 +604,7 @@ function focusCity(info, label, country){
 /* ══════════ 6 · WORLDWIDE VIEW + RESET BUTTON ════════════════ */
 function worldView(){
   if (window.matchMedia('(max-width: 560px)').matches){
-    map.setView([25, -58], 2);   // phones: Americas-to-Africa sweep, every dot from Oregon to Nigeria in frame
+    map.setView([25, -65], 2);   // phones: Americas + Atlantic, Europe/Africa coastline at the right edge — no clipped badges
   } else {
     map.fitBounds([[-25, -128], [58, 40]], { padding: [12, 12] });   // wide screens: US left, Europe & Africa right
   }
