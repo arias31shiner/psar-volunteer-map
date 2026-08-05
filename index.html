@@ -490,7 +490,7 @@ function renderVolunteers(list){
   map.addLayer(clusters);
   volunteerLatLngs = list.map(v => [v.lat, v.lng]);
   updateLabels();
-  worldView();   // the map opens showing every volunteer on Earth
+  worldView();   // the map opens on the USA; zoom out or scroll for the rest of the world
 
   const countries = new Set(list.map(v => v.country).filter(Boolean));
   document.getElementById('statsLine').innerHTML =
@@ -587,7 +587,7 @@ function focusCity(info, label, country){
 }
 
 /* ══════════ 6 · WORLDWIDE VIEW + RESET BUTTON ════════════════ */
-function worldView(){ map.setView([28, -40], map.getMinZoom()); }   // whole world, Atlantic-centered, US left of center
+function worldView(){ map.fitBounds([[24.5, -125.5], [49.5, -66.5]], { padding: [24, 24] }); }   // continental USA — the network's home; zoom out or scroll for the world
 
 const ResetControl = L.Control.extend({
   options: { position: window.matchMedia('(max-width: 560px)').matches ? 'bottomleft' : 'topright' },
@@ -595,7 +595,7 @@ const ResetControl = L.Control.extend({
     const wrap = L.DomUtil.create('div', 'reset-wrap');
     const btn = L.DomUtil.create('button', 'reset-btn', wrap);
     btn.type = 'button';
-    btn.setAttribute('aria-label', 'Reset to worldwide view');
+    btn.setAttribute('aria-label', 'Reset to the starting view');
     btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3.6 9h16.8M3.6 15h16.8M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg><span>Reset view</span>';
     L.DomEvent.disableClickPropagation(wrap);
     L.DomEvent.on(btn, 'click', e => { L.DomEvent.stop(e); worldView(); });
