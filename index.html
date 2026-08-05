@@ -123,7 +123,8 @@
   @media (max-width:560px){
     .site-card{left:12px;right:12px;top:12px;max-width:none;padding:12px 14px 12px 12px}
     .title{font-size:18px}
-    .reset-wrap{margin:0 0 12px 12px}
+    .reset-wrap{margin:0 0 34px 12px}
+    .leaflet-control-attribution{font-size:10px}
     .map-shell{height:min(66vh,520px);min-height:380px}
     .page{padding:8px}
   }
@@ -587,7 +588,13 @@ function focusCity(info, label, country){
 }
 
 /* ══════════ 6 · WORLDWIDE VIEW + RESET BUTTON ════════════════ */
-function worldView(){ map.fitBounds([[24.5, -125.5], [49.5, -66.5]], { padding: [24, 24] }); }   // continental USA — the network's home; zoom out or scroll for the world
+function worldView(){
+  if (window.matchMedia('(max-width: 560px)').matches){
+    map.setView([38.5, -96.5], 3);   // phones: USA centered, Mexico-to-Canada tall — no hemisphere of ocean
+  } else {
+    map.fitBounds([[24.5, -125.5], [49.5, -66.5]], { padding: [24, 24] });   // wide screens: continental USA edge to edge
+  }
+}
 
 const ResetControl = L.Control.extend({
   options: { position: window.matchMedia('(max-width: 560px)').matches ? 'bottomleft' : 'topright' },
